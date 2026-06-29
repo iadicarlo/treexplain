@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TreeXplain - Explainable Deforestation Monitoring</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        
+        .card h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 8px;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            color: #2e7d32;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>TreeXplain</h1>
+            <p>Explainable Deforestation Monitoring with AI</p>
+        </header>
+        
+        <div class="card">
+            <h2>Interactive Map</h2>
+            <p>Visualize deforestation detection results on an interactive map.</p>
+            <div id="map"></div>
+            <div id="status" class="status">Loading map...</div>
+        </div>
+        
+        <div class="card">
+            <h2>About TreeXplain</h2>
+            <p>TreeXplain uses satellite imagery and explainable AI to detect and explain deforestation patterns. Our platform provides transparent insights into forest changes, helping researchers, policymakers, and conservationists understand and address deforestation.</p>
+            <ul>
+                <li><strong>Satellite Data:</strong> Sentinel-2, Landsat, and more</li>
+                <li><strong>AI Model:</strong> U-Net for deforestation detection</li>
+                <li><strong>Explainable AI:</strong> SHAP, GradCAM, Integrated Gradients</li>
+                <li><strong>Open Source:</strong> Free and open for everyone</li>
+            </ul>
+        </div>
+    </div>
+    
+    <footer>
+        <p>TreeXplain - Explainable Deforestation Monitoring | Open Source AI for Good</p>
+    </footer>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([0, 0], 2);
+        
+        // Add base layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Add sample deforestation areas
+        const deforestationAreas = [
+            { name: 'Amazon Rainforest', coords: [-3.4653, -62.2159], zoom: 6, deforested: true },
+            { name: 'Borneo', coords: [0.7893, 114.9977], zoom: 7, deforested: true },
+            { name: 'Congo Basin', coords: [-0.2636, 18.8219], zoom: 6, deforested: true },
+            { name: 'Protected Area', coords: [51.1657, 10.4515], zoom: 8, deforested: false }
+        ];
+        
+        // Add markers
+        deforestationAreas.forEach(area => {
+            const color = area.deforested ? 'red' : 'green';
+            const icon = L.divIcon({
+                className: 'deforestation-marker',
+                html: `<div style="background:${color}; width:20px; height:20px; border-radius:50%; border:2px solid white;"></div>`,
+                iconSize: [20, 20]
+            });
+            
+            const marker = L.marker(area.coords, { icon }).addTo(map);
+            marker.bindPopup(`<b>${area.name}</b><br>Status: ${area.deforested ? 'Deforestation Detected' : 'Protected'}`);
+        });
+        
+        // Fit to all markers
+        const group = new L.featureGroup(deforestationAreas.map(a => L.marker(a.coords)));
+        map.fitBounds(group.getBounds().pad(1));
+        
+        // Update status
+        document.getElementById('status').textContent = 'Map loaded successfully. Click markers for details.';
+    </script>
+</body>
+</html>
