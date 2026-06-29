@@ -8,12 +8,15 @@
 
 ## Features
 
-- **Satellite Data Integration**: Fetch and process Sentinel-2, Landsat, and other satellite data
+- **Satellite Data Integration**: Fetch and process Sentinel-2, Landsat, and other satellite data via STAC API
 - **AI-Powered Detection**: U-Net based model for accurate deforestation detection
 - **Explainable AI**: Multiple XAI methods (SHAP, GradCAM, Integrated Gradients) for transparent predictions
 - **Interactive Visualization**: Web-based interface with Leaflet maps
-- **API Backend**: FastAPI backend for model inference and explanations
+- **API Backend**: FastAPI backend with comprehensive endpoints
 - **Automated CI/CD**: GitHub Actions workflows for testing and deployment
+- **Data Pipeline**: Complete data preprocessing and augmentation pipeline
+- **Model Training**: Full training infrastructure with early stopping and learning rate scheduling
+- **Container Support**: Docker and Docker Compose for easy deployment
 
 ## Quick Start
 
@@ -64,32 +67,47 @@ The GitHub Pages frontend is automatically deployed and available at:
 treexplain/
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml          # Continuous Integration
-│       └── deploy.yml      # GitHub Pages deployment
+│       ├── ci.yml              # Continuous Integration
+│       └── deploy.yml          # GitHub Pages deployment
 ├── docs/
-│   └── index.html          # GitHub Pages frontend
+│   └── index.html              # GitHub Pages frontend
+├── notebooks/
+│   └── data_exploration.ipynb   # Data exploration notebook
+├── scripts/
+│   ├── setup.sh                # Setup script
+│   └── train.py                # Training script
 ├── src/
 │   ├── __init__.py
-│   ├── config.py           # Project configuration
+│   ├── config.py               # Project configuration
 │   ├── api/
-│   │   └── main.py         # FastAPI backend
+│   │   ├── __init__.py
+│   │   ├── main.py             # FastAPI backend
+│   │   └── schemas.py          # Pydantic schemas
 │   ├── data/
 │   │   ├── __init__.py
-│   │   └── fetcher.py       # Satellite data fetching
+│   │   ├── fetcher.py           # STAC API client
+│   │   ├── pipeline.py          # Data pipeline
+│   │   └── preprocessor.py     # Data preprocessing
 │   ├── model/
 │   │   ├── __init__.py
-│   │   └── deforestation.py # U-Net model
+│   │   ├── deforestation.py     # U-Net model
+│   │   └── trainer.py           # Model trainer
 │   └── xai/
 │       ├── __init__.py
-│       └── explainer.py     # XAI methods
+│       └── explainer.py         # XAI methods
 ├── tests/
 │   ├── __init__.py
-│   ├── test_model.py       # Model tests
-│   └── test_xai.py         # XAI tests
+│   ├── test_model.py           # Model tests
+│   └── test_xai.py             # XAI tests
+├── .env.example                # Environment variables template
 ├── .gitignore
-├── .pre-commit-config.yaml
-├── pyproject.toml          # Project configuration
-└── README.md
+├── .pre-commit-config.yaml    # Pre-commit hooks
+├── Dockerfile                  # Docker configuration
+├── docker-compose.yml          # Docker Compose configuration
+├── LICENSE                    # MIT License
+├── pyproject.toml             # Project configuration
+├── README.md
+└── requirements.txt           # Dependencies
 ```
 
 ## Usage
@@ -102,6 +120,38 @@ from treexplain.data.fetcher import fetch_sentinel2
 # Fetch Sentinel-2 data for a bounding box
 bbox = [-62.2159, -3.4653, -62.0, -3.2]  # Amazon region
 items = fetch_sentinel2(bbox, days_back=7, limit=5)
+```
+
+### Preprocess Data
+
+```python
+from treexplain.data.pipeline import DataPipeline
+
+pipeline = DataPipeline(batch_size=8)
+images, labels = pipeline.get_sample_data(num_samples=20)
+pipeline.create_datasets(images, labels)
+dataloaders = pipeline.get_dataloaders()
+```
+
+### Train the Model
+
+```python
+from treexplain.model.trainer import ModelTrainer
+
+trainer = ModelTrainer(
+    num_epochs=50,
+    patience=5,
+    learning_rate=0.001
+)
+
+results = trainer.train(
+    dataloaders['train'],
+    dataloaders['val'],
+    dataloaders['test']
+)
+
+# Plot training history
+trainer.plot_training_history()
 ```
 
 ### Make Predictions
@@ -145,8 +195,13 @@ report = explainer.generate_report(
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/` | API information |
 | GET | `/health` | Health check |
-| POST | `/predict` | Make prediction with explanation |
+| GET | `/model` | Model information |
+| POST | `/predict` | Single prediction with explanation |
+| POST | `/predict/batch` | Batch predictions |
+| POST | `/stac/search` | Search STAC catalog |
+| GET | `/stac/search` | Search STAC catalog (GET) |
 
 ### Predict Endpoint
 
@@ -155,21 +210,69 @@ report = explainer.generate_report(
 {
     "image": "base64_encoded_numpy_array",
     "explain": true,
-    "methods": ["shap", "gradcam"]
+    "methods": ["shap", "gradcam"],
+    "threshold": 0.5
 }
 ```
 
 **Response:**
 ```json
 {
-    "prediction": 1.0,
+    "prediction": 1,
     "probability": 0.95,
     "explanation": {
         "shap": [...],
         "gradcam": [...]
     },
+    "model_version": "0.1.0",
+    "processing_time": 0.123,
     "message": "Prediction successful"
 }
+```
+
+## Command Line Tools
+
+### Training
+
+```bash
+# Train with sample data
+python scripts/train.py --sample-data --epochs 10
+
+# Train with custom parameters
+python scripts/train.py --epochs 50 --batch-size 16 --learning-rate 0.001
+```
+
+### Setup
+
+```bash
+# Full setup (dependencies, pre-commit, tests)
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+## Docker Deployment
+
+### Build and Run
+
+```bash
+# Build the image
+docker build -t treexplain .
+
+# Run the container
+docker run -p 8000:8000 -v $(pwd)/data:/app/data treexplain
+```
+
+### Docker Compose
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Stop services
+docker-compose down
+
+# With development profile (includes Jupyter)
+docker-compose --profile dev up -d
 ```
 
 ## Development
@@ -206,9 +309,74 @@ uv pip add package_name
 # Add development dependency
 uv pip add -D package_name
 
-# Update pyproject.toml
+# Update requirements.txt
 uv pip compile pyproject.toml -o requirements.txt
 ```
+
+## Environment Variables
+
+Create a `.env` file based on `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Key variables:
+- `STAC_API_URL`: STAC API endpoint
+- `API_HOST`: API host address
+- `API_PORT`: API port
+- `MODEL_PATH`: Path to trained model
+- `LOG_LEVEL`: Logging level
+
+## Project Checklist
+
+- [x] Repository created on GitHub
+- [x] uv installed and configured
+- [x] Project structure created
+- [x] Core Python modules implemented
+- [x] GitHub Pages frontend created
+- [x] GitHub Actions workflows configured
+- [x] Unit tests written
+- [x] Pre-commit hooks configured
+- [x] First commits made with proper attribution
+- [x] CI/CD pipeline ready
+- [x] GitHub Pages deployment configured
+- [x] Data pipeline implemented
+- [x] Model training infrastructure
+- [x] API endpoints extended
+- [x] Docker support added
+- [x] Notebooks for exploration
+- [x] Command-line tools
+
+## Next Steps
+
+### Priority 1: Train with Real Data
+
+1. **Get STAC API Access**: Sign up for Planetary Computer or other STAC provider
+2. **Collect Labeled Data**: Gather satellite images with deforestation labels
+3. **Train the Model**: Run `python scripts/train.py` with real data
+4. **Evaluate Performance**: Test on validation set and tune hyperparameters
+
+### Priority 2: Deploy Backend
+
+1. **Choose Hosting**: Render, Railway, Fly.io, or AWS
+2. **Configure Environment**: Set up environment variables and secrets
+3. **Deploy**: Push your trained model and start the API service
+4. **Monitor**: Set up logging and monitoring
+
+### Priority 3: Enhance Frontend
+
+1. **Connect to API**: Update frontend to call your deployed API
+2. **Add Upload**: Allow users to upload their own images
+3. **Visualize Results**: Display predictions and explanations interactively
+4. **Add Maps**: Integrate with Mapbox or Google Maps for better visualization
+
+### Priority 4: Advanced Features
+
+1. **Time Series Analysis**: Track deforestation over time
+2. **Multi-Model Support**: Add different models for comparison
+3. **Ensemble Methods**: Combine multiple models for better accuracy
+4. **Advanced XAI**: Add LIME, attention mechanisms, etc.
 
 ## Contributing
 
@@ -229,6 +397,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [FastAPI](https://fastapi.tiangolo.com/) for API backend
 - [Leaflet](https://leafletjs.com/) for interactive maps
 - [SHAP](https://github.com/slundberg/shap) and [Captum](https://captum.ai/) for explainable AI
+- [uv](https://astral.sh/uv) for Python package management
 
 ## Contact
 

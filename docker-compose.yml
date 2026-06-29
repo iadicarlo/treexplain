@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: treexplain-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./output:/app/output
+    environment:
+      - PYTHONPATH=/app
+      - STAC_API_URL=https://planetarycomputer.microsoft.com/api/stac/v1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Jupyter notebook for development
+  notebook:
+    image: jupyter/minimal-notebook:python-3.11
+    container_name: treexplain-notebook
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/home/jovyan/work
+      - ./data:/home/jovyan/work/data
+      - ./models:/home/jovyan/work/models
+      - ./output:/home/jovyan/work/output
+    environment:
+      - PYTHONPATH=/home/jovyan/work
+    command: ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token='treexplain'", "--NotebookApp.password=''"]
+    profiles:
+      - dev
+
+  # Optional: Redis for caching (future enhancement)
+  redis:
+    image: redis:alpine
+    container_name: treexplain-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    profiles:
+      - cache
+
+volumes:
+  redis_data:
